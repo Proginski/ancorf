@@ -35,17 +35,11 @@ log.info paramsSummaryLog(workflow)
 */
 
 include { CHECK_INPUTS                    } from '../modules/local/ancorf_modules.nf'
-include { GET_CANDIDATES_LIST             } from '../modules/local/ancorf_modules.nf'
-include { CHECK_NEIGHBORS                 } from '../modules/local/ancorf_modules.nf'
-include { GET_PHYLIP_NAMES                } from '../modules/local/ancorf_modules.nf'
-include { GET_ALIGNMENT_FASTA             } from '../modules/local/ancorf_modules.nf'
-include { NUCLEOTIDE_ALIGNMENT            } from '../modules/local/ancorf_modules.nf'
-include { CONVERT_ALIGNED_FASTA_TO_PHYLIP } from '../modules/local/ancorf_modules.nf'
-include { PHYML_TREE                      } from '../modules/local/ancorf_modules.nf'
-include { PRANK                           } from '../modules/local/ancorf_modules.nf'
-include { GET_ANCESTOR_FNA                } from '../modules/local/ancorf_modules.nf'
-include { GET_ANCESTOR_ORFS               } from '../modules/local/ancorf_modules.nf'
-include { LALIGN                          } from '../modules/local/ancorf_modules.nf'
+include { EXTRACT_CDS                     } from '../modules/local/ancorf_modules.nf'
+include { ELONGATE_CDS                    } from '../modules/local/ancorf_modules.nf'
+include { ALIGNMENT_FASTA                 } from '../modules/local/ancorf_modules.nf'
+include { ANCESTRAL_ORFS                  } from '../modules/local/ancorf_modules.nf'
+include { ANCESTRAL_ORFS_PHYML            } from '../modules/local/ancorf_modules.nf'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -69,99 +63,87 @@ Warnings :
 
 
 // WORKFLOW
-workflow {
+workflow ANCORF {
 
-	// Check the inputs before the beginning.
-	GET_CANDIDATES_LIST(params.seqlist)
-	queries_ch = GET_CANDIDATES_LIST.out.splitText(){ it.trim() }
-	
+	/*
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	Check the inputs before the beginning.
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	*/
+
 	CHECK_INPUTS(
-		params.tree,
-		params.gendir,
-		params.focal,
-		get_candidates_list.out
+				 file(params.gendir),
+				 file(params.tree),
+				 file(params.trg_table)
+				)
+
+	// genomic FASTA and GFF3 pairs that will be processed
+	genome_ch = CHECK_INPUTS.out.genome_files
+		.splitText() 
+		.map { tuple( it.strip().split("__,__") ) }
+		.map { fasta, gff -> [ file(fasta).getBaseName(), fasta, gff ] }
+
+	/*
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	Exctract the CDS of each genome
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	*/
+
+	EXTRACT_CDS(genome_ch)
+
+	// Also get an elongated version of the trasnlated CDS for every genome (subjects).
+	ELONGATE_CDS(EXTRACT_CDS.out)
+	ELONGATE_CDS.out.CDS_elongated_fna.collect().set { elongate_cds_fastas }
+	ELONGATE_CDS.out.gfastas.collect().set { elongate_cds_gfastas }
+	ELONGATE_CDS.out.fais.collect().set { elongate_cds_fais }
+
+	// Get the new, phylip compliant, names of the focal genome.
+	focal = CHECK_INPUTS.out.phylip_names
+		.splitText() 
+		.map { tuple( it.strip().split("\t") ) }
+		.filter { it[0] == params.focal }
+		.map { it[1] }
+		.first()
+
+	// Get the name of the focal CDS aa FASTA file
+	focal_CDS_faa = EXTRACT_CDS.out
+		.filter { it[0] == focal.value }
+		.map { it[5] }
+		.first()
+
+	/*
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	Get a FASTA with the CDS and its neighbor nucleotide homologous sequences.
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	*/
+
+	ALIGNMENT_FASTA(
+		file(params.queries), 
+		CHECK_INPUTS.out.trg_table,
+		focal,
+		elongate_cds_fastas,
+		elongate_cds_gfastas,
+		elongate_cds_fais
 		)
-	neighbors_ch = CHECK_INPUTS.out.neighbors.splitText(){ it.trim() }
-	CHECK_NEIGHBORS(
-		neighbors_ch, 
-		params.focal,
-		CHECK_INPUTS.out.multicandidates_faa
-		)
-	ready_neighbors = CHECK_NEIGHBORS.out.last()
 
-
-	// Get a modified tree with short names that correspond to phylip file names.
-	GET_PHYLIP_NAMES(params.gendir, params.tree)
-
-
-	// Get a FASTA with the CDS and its neighbor nucleotide homologous sequences.
-	GET_ALIGNMENT_FASTA(
-		ready_neighbors,
-		queries_ch, 
-		params.focal,
-		params.gendir,
-		GET_PHYLIP_NAMES.out.phylip_names,
-		GET_PHYLIP_NAMES.out.phylip_names_tree
-		)
+	/*
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	Reconstruct the ancestral ORFs.
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	*/
 	
-	
-	// Make nucleotide sequences alignments with MACSE
-	NUCLEOTIDE_ALIGNMENT(
-		GET_ALIGNMENT_FASTA.out.toali,
-		GET_ALIGNMENT_FASTA.out.newick,
-		GET_ALIGNMENT_FASTA.out.names_n_types
-		)
-				
-				
-	// For each CDS of interest we generated one alignment nucleotide file ${name}_aligned.fna and 
-	// one alignment amino acid file ${name}_aligned.faa located in FASTA_to_be_aligned/macse_results.
-	// Transfrom the nucleotide alignments generated by the previous step into PHYLIP files using seqret.
-	CONVERT_ALIGNED_FASTA_TO_PHYLIP(
-		NUCLEOTIDE_ALIGNMENT.out.NT_alignment,
-		NUCLEOTIDE_ALIGNMENT.out.newick,
-		NUCLEOTIDE_ALIGNMENT.out.names_n_types
-		)
+	if (params.phyml) { // Prank uses the tree of the gene (phyml)
+		ANCESTRAL_ORFS_PHYML( 
+			ALIGNMENT_FASTA.out.fna.flatten(),
+			CHECK_INPUTS.out.tree,
+			focal_CDS_faa
+			)
+	} else {
+		ANCESTRAL_ORFS( // Prank uses the tree of the genomes
+			ALIGNMENT_FASTA.out.fna.flatten(),
+			CHECK_INPUTS.out.tree,
+			focal_CDS_faa
+			)
+	}
 
-
-	// For each CDS of interest we generated one alignment PHYLIP file ${name}_NT.phylip
-	// Construct one phylogenetic tree per CDS of interest with the alignment of the previous step using phyml.
-	// Even if more inputs are provided, phyml only use the PHYLIP file and the newick one.
-	PHYML_TREE(
-		CONVERT_ALIGNED_FASTA_TO_PHYLIP.out.phylip,
-		CONVERT_ALIGNED_FASTA_TO_PHYLIP.out.newick,
-		CONVERT_ALIGNED_FASTA_TO_PHYLIP.out.NT_alignment,
-		CONVERT_ALIGNED_FASTA_TO_PHYLIP.out.names_n_types
-		)
-
-
-	// For each CDS of interest we generated one tree file ${name}_NT.phylip_phyml_tree.txt located in the directory FASTA_to_be_aligned/PHYLIP
-	// Reconstruct the ancestral sequences for every sequence in the alignment file using PRANK. 
-	// As input, the nucleotide alignment file as generated with MACSE and the gene specific phylogenetic tree as generated with phyml.
-	PRANK(
-		PHYML_TREE.out.NT_alignment,
-		PHYML_TREE.out.phyml_tree,
-		PHYML_TREE.out.names_n_types
-		)
-
-
-	// For each CDS of interest we generated one fasta file ${gene}.best.anc.fas which contains 
-	// the ancestral nucleotide sequence reconstructed for every branch of the tree. 
-	// Determine the name of the node to keep as the ancestor of interest and output its nucleotide sequence into a FASTA file
-	GET_ANCESTOR_FNA(
-		PRANK.out.prank_fas,
-		PRANK.out.prank_tree,
-		GET_PHYLIP_NAMES.out.phylip_names_tree,
-		PRANK.out.names_n_types
-		)
-				
-				
-	// Translate the ancestral nucleotide sequence into the 3 possible frames and get the resulting ORFs of min length 20AA (60 nucl).
-	GET_ANCESTOR_ORFS(GET_ANCESTOR_FNA.out.ancestor_fna)
-	
-	
-	// lalign the original translated CDS with the translated ancestral ORFs.
-	LALIGN(
-		GET_ANCESTOR_ORFS.out.ancestor_ORF,
-		params.focal
-		)
  }
