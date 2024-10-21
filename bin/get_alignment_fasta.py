@@ -7,7 +7,8 @@ This program generate a FASTA file with the CDS of the focal genome, and the CDS
 It takes as input : 
 - a text file (one column) with the list of CDS from the focal to align.
 - a 'TRG_table.tsv' file from DENSE.
-- the nucleotide FASTA of the genomes.
+- a text file (one column) with the names of the genomes.
+- the name of the focal genome.
 """
 
 
@@ -94,12 +95,16 @@ for name in names:
                     entries_dic[name][record.id] = record
 
 # Build a nucleotide FASTA for further alignment
-# Only keep queries with at least two neighbor hits
+# Only keep queries with at least --num_outgroups genome (i.e. non-coding) outgroups neighbors 
 for query in hits_dic:
     if len(hits_dic[query]) > 1:
         print(query)
         # Build a nucleotide FASTA file with the CDS of the focal genome, and the CDS or the intergenic region of its neighbors
-        with open(f"{query}_toalign.fna", "w") as output_handle:
+        def sanitize_filename(filename):
+            return filename.replace(":", "__COLON__").replace("/", "__SLASH__").replace("!", "__EXCLAMATION__").replace("|", "__PIPE__")
+
+        query_sanitized = sanitize_filename(query)
+        with open(f"{query_sanitized}_toalign.fna", "w") as output_handle:
             # Change the header to the name of the genome
             print(entries_dic[focal][query])
             entries_dic[focal][query].id = focal

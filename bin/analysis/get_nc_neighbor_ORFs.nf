@@ -226,7 +226,7 @@ process ALIGNMENT_FASTA {
 		path fais
 
 	output:
-		// These output are optional since CDS with less than 2 neighbors with an homolog are filtered out at this step.
+		// These output are optional since CDS with less than 2 neighbors with an homolog are filtered out at thise step.
 		path "*_toalign.fna", emit : fna, optional: true
 		path "*.nwk", emit : newick, optional: true
 		path "*_names_n_types.txt", emit : names_n_types, optional: true

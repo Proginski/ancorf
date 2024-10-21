@@ -54,6 +54,11 @@
           "type": "boolean",
           "default": false,
           "description": "Use phyml to build a gene tree from the alignment and use this tree as input for Prank."
+        },
+        "ssearch": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use ssearch36 to align ancestral ORFs on the current CDS."
         }
       },
       "required": ["focal","tree"]
