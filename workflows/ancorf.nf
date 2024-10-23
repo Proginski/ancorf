@@ -34,14 +34,13 @@ log.info paramsSummaryLog(workflow)
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 */
 
-include { CHECK_INPUTS                    } from '../modules/local/ancorf_modules.nf'
-include { EXTRACT_CDS                     } from '../modules/local/ancorf_modules.nf'
-include { ELONGATE_CDS                    } from '../modules/local/ancorf_modules.nf'
-include { ALIGNMENT_FASTA                 } from '../modules/local/ancorf_modules.nf'
-include { ANCESTRAL_ORFS                  } from '../modules/local/ancorf_modules.nf'
-include { ANCESTRAL_ORFS_PHYML            } from '../modules/local/ancorf_modules.nf'
-include { ANCESTRAL_ORFS_SSEARCH          } from '../modules/local/ancorf_modules.nf'
-include { ANCESTRAL_ORFS_PHYML_SSEARCH    } from '../modules/local/ancorf_modules.nf'
+include { CHECK_INPUTS               } from '../modules/local/ancorf_modules.nf'
+include { EXTRACT_CDS                } from '../modules/local/ancorf_modules.nf'
+include { ELONGATE_CDS               } from '../modules/local/ancorf_modules.nf'
+include { ALIGNMENT_FASTA            } from '../modules/local/ancorf_modules.nf'
+include { ANCESTRAL_ORFS             } from '../modules/local/ancorf_modules.nf'
+include { ANCESTRAL_ORFS_MACSE       } from '../modules/local/ancorf_modules.nf'
+include { ANCESTRAL_ORFS_MACSE_PHYML } from '../modules/local/ancorf_modules.nf'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -134,33 +133,24 @@ workflow ANCORF {
 	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	*/
 	
-	if (params.ssearch) { // ancORFs aligned with ssearch36
-		if (params.phyml) { // Prank uses the tree of the gene (phyml)
-		ANCESTRAL_ORFS_PHYML_SSEARCH( 
+	if (params.mode == "genomes_not_aligned") {
+		ANCESTRAL_ORFS( 
 			ALIGNMENT_FASTA.out.fna.flatten(),
 			CHECK_INPUTS.out.tree,
 			focal_CDS_faa
 			)
-		} else {
-			ANCESTRAL_ORFS_SSEARCH( // Prank uses the tree of the genomes
-				ALIGNMENT_FASTA.out.fna.flatten(),
-				CHECK_INPUTS.out.tree,
-				focal_CDS_faa
-				)
-		}
-	} else {
-		if (params.phyml) { // Prank uses the tree of the gene (phyml)
-			ANCESTRAL_ORFS_PHYML( 
-				ALIGNMENT_FASTA.out.fna.flatten(),
-				CHECK_INPUTS.out.tree,
-				focal_CDS_faa
-				)
-		} else {
-			ANCESTRAL_ORFS( // Prank uses the tree of the genomes
-				ALIGNMENT_FASTA.out.fna.flatten(),
-				CHECK_INPUTS.out.tree,
-				focal_CDS_faa
-				)
-		}
+	} else if (params.mode == "genomes_aligned") {
+		ANCESTRAL_ORFS_MACSE( 
+			ALIGNMENT_FASTA.out.fna.flatten(),
+			CHECK_INPUTS.out.tree,
+			focal_CDS_faa
+			)
+	} else if (params.mode == "genes_aligned") {
+		ANCESTRAL_ORFS_MACSE_PHYML( 
+			ALIGNMENT_FASTA.out.fna.flatten(),
+			CHECK_INPUTS.out.tree,
+			focal_CDS_faa
+			)
 	}
+
  }

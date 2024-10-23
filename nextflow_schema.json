@@ -50,15 +50,10 @@
           "description": "The phylogenetic tree that shows relations between the genomes (Newick format). E.g. \"((Ptep:0.75680000,Pruf:0.75680000)'210':0.38205000,Pfoa:1.13885000)'220';\"",
           "format": "file-path"
         },
-        "phyml": {
-          "type": "boolean",
-          "default": false,
-          "description": "Use phyml to build a gene tree from the alignment and use this tree as input for Prank."
-        },
-        "ssearch": {
-          "type": "boolean",
-          "default": true,
-          "description": "Use ssearch36 to align ancestral ORFs on the current CDS."
+        "mode": {
+          "type": "string",
+          "description": "The mode of the pipeline.",
+          "enum": ["genomes_not_aligned", "genomes_aligned", "genes_aligned"]
         }
       },
       "required": ["focal","tree"]

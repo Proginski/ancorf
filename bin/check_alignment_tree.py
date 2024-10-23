@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
+The aim of the script is to detect abberrant trees when it comes to reconstruct the last common ancestor between a focal leaf and the first non-coding outgroup. 
 This script takes as input a focal leaf, and a TSV file with orf\tnewick_string\tancestor_node\tCDS_leaves.
 It writes a new TSV file with orf\tboolean\tancestor_node\toutgroup_CDS_leaves.
 """
@@ -31,16 +32,31 @@ def get_outgroup_leaves(tree, node_name, focal_leaf_name):
     else:
         raise ValueError(f"Focal leaf '{focal_leaf_name}' is not a descendant of node '{node_name}'.")
 
-    CDS_node = path[-2]
+    # CDS_node = path[-2]
 
-    # Get all leaves under the input node
-    all_leaves = set(node.get_leaf_names())
+    # # Get all leaves under the input node
+    # all_leaves = set(node.get_leaf_names())
 
-    CDS_leaves = set(tree.search_nodes(name=CDS_node)[0].get_leaf_names())
+    # CDS_leaves = set(tree.search_nodes(name=CDS_node)[0].get_leaf_names())
   
-    outgroup_leaves = all_leaves - CDS_leaves
+    # outgroup_leaves = all_leaves - CDS_leaves
 
-    return outgroup_leaves
+    # return outgroup_leaves
+
+    # The provided "node_name" has two children branches (bifurcation).
+    # One contains the focal leaf (plus possibly other nodes and leaves), and the other does not.
+    # The "penultimate_node" is the node that contains all the leaves of this first branch (the focal's branch)..
+    penultimate_node = path[-2]
+
+    # All the leaves of the tree
+    all_leaves = set(tree.get_leaf_names())
+
+    # All the leaves of the penultimate node
+    penultimate_node_leaves = set(tree.search_nodes(name=penultimate_node)[0].get_leaf_names())
+
+    other_leaves = all_leaves - penultimate_node_leaves
+
+    return other_leaves
 
 def main():
     parser = argparse.ArgumentParser(description="Print all nodes from the focal leaf to the input node in a Newick tree.")
@@ -50,8 +66,9 @@ def main():
     args = parser.parse_args()
 
     with open(args.input_tsv, 'r') as infile, open(args.output_tsv, 'w') as outfile:
-        header = infile.readline()  # Read and skip the header line
-        outfile.write(header)  # Optionally, write the header to the output file
+        infile.readline()  # Read and skip the header line of the input file
+        header = "orf\ttreeIsOK\tanode\tpb_leaves\n"
+        outfile.write(header)
         for line in infile:
             orf, newick_string, ancestor_node, cds_leaves = line.strip().split('\t')
             if cds_leaves == '.':

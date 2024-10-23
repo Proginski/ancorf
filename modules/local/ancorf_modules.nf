@@ -239,80 +239,9 @@ process ALIGNMENT_FASTA {
 }
 
 
-process ALIGNMENT { // Unused
-
-	publishDir "${params.outdir}"
-
-	input:
-		path toali
-		path tree
-		path focal_CDS_faa
-
-	output:
-		path "*"
-		
-	"""
-	seq=\$(echo $toali | sed "s/_toalign.fna//")
-
-	# Align
-	java -jar ${projectDir}/bin/macse_v2.07.jar -prog alignSequences -seq $toali -out_NT \${seq}_aligned.fna
-	
-	# Correct the NT file by replacing '!' characters by '-'
-	sed 's|!|-|g' \${seq}_aligned.fna > \${seq}_aligned.fna.tmp
-	# Remove description from the headers
-	awk '/^>/ {print ">"substr(\$1, 2)} !/^>/ {print \$0}' \${seq}_aligned.fna.tmp > \${seq}_aligned.fna ; rm \${seq}_aligned.fna.tmp
-	"""
-}
-
-
 process ANCESTRAL_ORFS {
 
-	publishDir "${params.outdir}"
-
-	input:
-		path toali
-		path tree
-		path focal_CDS_faa
-
-	output:
-		path "*"
-		
-	"""
-	seq=\$(echo $toali | sed "s/_toalign.fna//")
-
-	# Align
-	java -jar ${projectDir}/bin/macse_v2.07.jar -prog alignSequences -seq $toali -out_NT \${seq}_aligned.fna
-	
-	# Correct the NT file by replacing '!' characters by '-'
-	sed 's|!|-|g' \${seq}_aligned.fna > \${seq}_aligned.fna.tmp
-	# Remove description from the headers
-	awk '/^>/ {print ">"substr(\$1, 2)} !/^>/ {print \$0}' \${seq}_aligned.fna.tmp > \${seq}_aligned.fna ; rm \${seq}_aligned.fna.tmp
-
-	# Reconstruct the ancestral sequence.
-	prank -d=\${seq}_aligned.fna -t=$tree -o=\${seq} -once -showanc -prunetree
-
-	# Select the node that corresponds to the most recent common ancestor of the focal genome and its closest outgroup neighbor(s).
-	select_ancestor_node.py $tree $toali \${seq}.best.anc.dnd \${seq}.best.anc.fas -o \${seq}_anc.fna.tmp
-	# Remove line breaks and '-' characters from the ancestral sequence.
-	awk 'BEGIN {n=0;} /^>/ {if(n>0) printf("\\n%s\\n",\$0); else printf("%s\\n",\$0); n++; next;} {printf("%s",\$0);} END {printf("\\n");}' \${seq}_anc.fna.tmp | tr -d '-' > \${seq}_anc.fna ; rm \${seq}_anc.fna.tmp
-
-	# Retrieve all the ORFs from the ancestral sequence.
-	# --strand s (=sense), --type both (nucl and AA), --min_size 60 (minimal length 60 nucl)
-	fasta_get_ORFs.py \${seq}_anc.fna --min_size 60 --strand s --type both --output \${seq}_anc_ORFs
-
-	# Perform a pairwise alignment of each of the ancestral ORFs with the query CDS
-	original_seq=\$(echo \${seq} | sed -e "s~__COLON__~:~g" -e "s~__SLASH__~/~g" -e "s~__EXCLAMATION__~!~g" -e "s~__PIPE__~|~g")
-	faOneRecord $focal_CDS_faa \${original_seq} > \${seq}.faa
-	#water_multi.sh \${seq}_anc_ORFs.faa \${seq}.faa > \${seq}_anc_ORFs_vs_\${seq}_water.tsv
-	# Lalign with a tabular blast output format and and minimal e-value of 0.01
-	lalign36 -m8C -E 0.01 \${seq}.faa \${seq}_anc_ORFs.faa > \${seq}_anc_ORFs_vs_\${seq}_lalign36.tsv
-	"""
-}
-
-
-process ANCESTRAL_ORFS_PHYML {
-
-	errorStrategy { task.attempt <= 1 ? 'retry' : 'ignore' }
+	errorStrategy 'retry'
 
 	publishDir "${params.outdir}"
 
@@ -327,33 +256,9 @@ process ANCESTRAL_ORFS_PHYML {
 	"""
 	seq=\$(echo $toali | sed "s/_toalign.fna//")
 
-	# Align
-	java -jar ${projectDir}/bin/macse_v2.07.jar -prog alignSequences -seq $toali -out_NT \${seq}_aligned.fna
-	
-	# Correct the NT file by replacing '!' characters by '-'
-	sed 's|!|-|g' \${seq}_aligned.fna > \${seq}_aligned.fna.tmp
-	# Remove description from the headers
-	awk '/^>/ {print ">"substr(\$1, 2)} !/^>/ {print \$0}' \${seq}_aligned.fna.tmp > \${seq}_aligned.fna ; rm \${seq}_aligned.fna.tmp
-
-	# Convert the NT alignment to a phylip file.
-	fasta_to_phylip.py \${seq}_aligned.fna \${seq}_aligned.phylip
-
-	# Get a subtree with only the genomes of the alignment.
-	awk '/^>/ {print substr(\$1, 2)}' $toali > genome_names.txt
-	tree_prune.py $tree genome_names.txt > subtree.nwk
-
-	# Build a tree based on the alignment.
-	### WARNING phyml needs a relative path after -i ###
-	### WARNING depending on the computer used to install phyml 
-	### (e.g. using nextflow with a singularity image built with another machine), 
-	### launching phyml on another machine (or node, for HPCs) might prompt an "Illegal instruction" error, 
-	### because CPUs are not configured the same way. 
-	### See https://wiki.parabola.nu/Fixing_illegal_instruction_issues ###
-	phyml -i \${seq}_aligned.phylip -d nt -v e -o lr -c 4 -a e -b 0 -f e -u subtree.nwk
-	mv \${seq}_aligned.phylip_phyml_tree.txt alignment_tree.nwk
-
 	# Reconstruct the ancestral sequence.
-	prank -d=\${seq}_aligned.fna -t=alignment_tree.nwk -o=\${seq} -once -showanc
+	# <(awk '/^>/ {\$0=\$1} ; //' $toali) is just $toali with short headers.
+	prank -d=<(awk '/^>/ {\$0=\$1} ; //' $toali) -t=$tree -o=\${seq} -once -showanc -prunetree
 
 	# Select the node that corresponds to the most recent common ancestor of the focal genome and its closest outgroup neighbor(s).
 	select_ancestor_node.py $tree $toali \${seq}.best.anc.dnd \${seq}.best.anc.fas -o \${seq}_anc.fna.tmp
@@ -367,61 +272,59 @@ process ANCESTRAL_ORFS_PHYML {
 	# Perform a pairwise alignment of each of the ancestral ORFs with the query CDS
 	original_seq=\$(echo \${seq} | sed -e "s~__COLON__~:~g" -e "s~__SLASH__~/~g" -e "s~__EXCLAMATION__~!~g" -e "s~__PIPE__~|~g")
 	faOneRecord $focal_CDS_faa \${original_seq} > \${seq}.faa
-	#water_multi.sh \${seq}_anc_ORFs.faa \${seq}.faa > \${seq}_anc_ORFs_vs_\${seq}_water.tsv
-	# Lalign with a tabular blast output format and and minimal e-value of 0.01
-	lalign36 -m8C -E 0.01 \${seq}.faa \${seq}_anc_ORFs.faa > \${seq}_anc_ORFs_vs_\${seq}_lalign36.tsv
-	"""
-}
-
-
-process ANCESTRAL_ORFS_SSEARCH {
-
-	publishDir "${params.outdir}"
-
-	input:
-		path toali
-		path tree
-		path focal_CDS_faa
-
-	output:
-		path "*"
-		
-	"""
-	seq=\$(echo $toali | sed "s/_toalign.fna//")
-
-	# Align
-	java -jar ${projectDir}/bin/macse_v2.07.jar -prog alignSequences -seq $toali -out_NT \${seq}_aligned.fna
-	
-	# Correct the NT file by replacing '!' characters by '-'
-	sed 's|!|-|g' \${seq}_aligned.fna > \${seq}_aligned.fna.tmp
-	# Remove description from the headers
-	awk '/^>/ {print ">"substr(\$1, 2)} !/^>/ {print \$0}' \${seq}_aligned.fna.tmp > \${seq}_aligned.fna ; rm \${seq}_aligned.fna.tmp
-
-	# Reconstruct the ancestral sequence.
-	prank -d=\${seq}_aligned.fna -t=$tree -o=\${seq} -once -showanc -prunetree
-
-	# Select the node that corresponds to the most recent common ancestor of the focal genome and its closest outgroup neighbor(s).
-	select_ancestor_node.py $tree $toali \${seq}.best.anc.dnd \${seq}.best.anc.fas -o \${seq}_anc.fna.tmp
-	# Remove line breaks and '-' characters from the ancestral sequence.
-	awk 'BEGIN {n=0;} /^>/ {if(n>0) printf("\\n%s\\n",\$0); else printf("%s\\n",\$0); n++; next;} {printf("%s",\$0);} END {printf("\\n");}' \${seq}_anc.fna.tmp | tr -d '-' > \${seq}_anc.fna ; rm \${seq}_anc.fna.tmp
-
-	# Retrieve all the ORFs from the ancestral sequence.
-	# --strand s (=sense), --type both (nucl and AA), --min_size 60 (minimal length 60 nucl)
-	fasta_get_ORFs.py \${seq}_anc.fna --min_size 60 --strand s --type both --output \${seq}_anc_ORFs
-
-	# Perform a pairwise alignment of each of the ancestral ORFs with the query CDS
-	original_seq=\$(echo \${seq} | sed -e "s~__COLON__~:~g" -e "s~__SLASH__~/~g" -e "s~__EXCLAMATION__~!~g" -e "s~__PIPE__~|~g")
-	faOneRecord $focal_CDS_faa \${original_seq} > \${seq}.faa
-	#water_multi.sh \${seq}_anc_ORFs.faa \${seq}.faa > \${seq}_anc_ORFs_vs_\${seq}_water.tsv
 	# Ssearch with a tabular blast output format and and minimal e-value of 0.01
 	ssearch36 -m8C -E 0.01 \${seq}.faa \${seq}_anc_ORFs.faa > \${seq}_anc_ORFs_vs_\${seq}_ssearch36.tsv
 	"""
 }
 
 
-process ANCESTRAL_ORFS_PHYML_SSEARCH {
+process ANCESTRAL_ORFS_MACSE {
 
-	errorStrategy { task.attempt <= 1 ? 'retry' : 'ignore' }
+	publishDir "${params.outdir}"
+
+	input:
+		path toali
+		path tree
+		path focal_CDS_faa
+
+	output:
+		path "*"
+		
+	"""
+	seq=\$(echo $toali | sed "s/_toalign.fna//")
+
+	# Align
+	java -jar ${projectDir}/bin/macse_v2.07.jar -prog alignSequences -seq $toali -out_NT \${seq}_aligned.fna
+	
+	# Correct the NT file by replacing '!' characters by '-'
+	sed 's|!|-|g' \${seq}_aligned.fna > \${seq}_aligned.fna.tmp
+	# Remove description from the headers
+	awk '/^>/ {print ">"substr(\$1, 2)} !/^>/ {print \$0}' \${seq}_aligned.fna.tmp > \${seq}_aligned.fna ; rm \${seq}_aligned.fna.tmp
+
+	# Reconstruct the ancestral sequence.
+	prank -d=\${seq}_aligned.fna -t=$tree -o=\${seq} -once -showanc -prunetree -keep
+
+	# Select the node that corresponds to the most recent common ancestor of the focal genome and its closest outgroup neighbor(s).
+	select_ancestor_node.py $tree $toali \${seq}.anc.dnd \${seq}.anc.fas -o \${seq}_anc.fna.tmp
+	# Remove line breaks and '-' characters from the ancestral sequence.
+	awk 'BEGIN {n=0;} /^>/ {if(n>0) printf("\\n%s\\n",\$0); else printf("%s\\n",\$0); n++; next;} {printf("%s",\$0);} END {printf("\\n");}' \${seq}_anc.fna.tmp | tr -d '-' > \${seq}_anc.fna ; rm \${seq}_anc.fna.tmp
+
+	# Retrieve all the ORFs from the ancestral sequence.
+	# --strand s (=sense), --type both (nucl and AA), --min_size 60 (minimal length 60 nucl)
+	fasta_get_ORFs.py \${seq}_anc.fna --min_size 60 --strand s --type both --output \${seq}_anc_ORFs
+
+	# Perform a pairwise alignment of each of the ancestral ORFs with the query CDS
+	original_seq=\$(echo \${seq} | sed -e "s~__COLON__~:~g" -e "s~__SLASH__~/~g" -e "s~__EXCLAMATION__~!~g" -e "s~__PIPE__~|~g")
+	faOneRecord $focal_CDS_faa \${original_seq} > \${seq}.faa
+	# Ssearch with a tabular blast output format and and minimal e-value of 0.01
+	ssearch36 -m8C -E 0.01 \${seq}.faa \${seq}_anc_ORFs.faa > \${seq}_anc_ORFs_vs_\${seq}_ssearch36.tsv
+	"""
+}
+
+
+process ANCESTRAL_ORFS_MACSE_PHYML {
+
+	// errorStrategy { task.attempt <= 1 ? 'retry' : 'ignore' }
 
 	publishDir "${params.outdir}"
 
@@ -462,12 +365,29 @@ process ANCESTRAL_ORFS_PHYML_SSEARCH {
 	mv \${seq}_aligned.phylip_phyml_tree.txt alignment_tree.nwk
 
 	# Reconstruct the ancestral sequence.
-	prank -d=\${seq}_aligned.fna -t=alignment_tree.nwk -o=\${seq} -once -showanc
+	prank -d=\${seq}_aligned.fna -t=alignment_tree.nwk -o=\${seq} -once -showanc -keep
 
 	# Select the node that corresponds to the most recent common ancestor of the focal genome and its closest outgroup neighbor(s).
-	select_ancestor_node.py $tree $toali \${seq}.best.anc.dnd \${seq}.best.anc.fas -o \${seq}_anc.fna.tmp
+	select_ancestor_node.py $tree $toali \${seq}.anc.dnd \${seq}.anc.fas -o \${seq}_anc.fna.tmp
 	# Remove line breaks and '-' characters from the ancestral sequence.
 	awk 'BEGIN {n=0;} /^>/ {if(n>0) printf("\\n%s\\n",\$0); else printf("%s\\n",\$0); n++; next;} {printf("%s",\$0);} END {printf("\\n");}' \${seq}_anc.fna.tmp | tr -d '-' > \${seq}_anc.fna ; rm \${seq}_anc.fna.tmp
+
+	# Check that the alignment tree do not imply to reconstruct an abberrant ancestor (i.e CDS matches in both bifurcations, the one with the focal, and the other).
+	focal=\$(echo $focal_CDS_faa | sed "s/_CDS.faa//")
+	ancestor_node=\$(head -n 1 \${seq}_anc.fna | sed "s/^>//")
+	CDS_leaves=\$(grep "CDS" $toali | awk '{print substr(\$1, 2)}' | tr '\n' '|')
+	CDS_leaves=\${CDS_leaves:-.}
+	echo -e "orf\tnewick_string\tanode\tCDS_leaves" > input_check_alignment_tree.tsv
+	echo -e "\${seq}\t\$(cat alignment_tree.nwk)\t\${ancestor_node}\t\${CDS_leaves}" >> input_check_alignment_tree.tsv
+	check_alignment_tree.py input_check_alignment_tree.tsv output_check_alignment_tree.txt --focal_leaf_name \${focal}
+	
+	result_check_alignment_tree=\$(awk -F"\t" -v seq="\${seq}" '\$1 == seq {print \$2}' output_check_alignment_tree.txt)
+
+	if [ "\$result_check_alignment_tree" == "FALSE" ]
+	then
+		echo "Stopping for \${seq} : the alignment tree implies to reconstruct an abberrant ancestor."
+		exit 0
+	fi
 
 	# Retrieve all the ORFs from the ancestral sequence.
 	# --strand s (=sense), --type both (nucl and AA), --min_size 60 (minimal length 60 nucl)
@@ -476,7 +396,6 @@ process ANCESTRAL_ORFS_PHYML_SSEARCH {
 	# Perform a pairwise alignment of each of the ancestral ORFs with the query CDS
 	original_seq=\$(echo \${seq} | sed -e "s~__COLON__~:~g" -e "s~__SLASH__~/~g" -e "s~__EXCLAMATION__~!~g" -e "s~__PIPE__~|~g")
 	faOneRecord $focal_CDS_faa \${original_seq} > \${seq}.faa
-	#water_multi.sh \${seq}_anc_ORFs.faa \${seq}.faa > \${seq}_anc_ORFs_vs_\${seq}_water.tsv
 	# Ssearch with a tabular blast output format and and minimal e-value of 0.01
 	ssearch36 -m8C -E 0.01 \${seq}.faa \${seq}_anc_ORFs.faa > \${seq}_anc_ORFs_vs_\${seq}_ssearch36.tsv
 	"""
