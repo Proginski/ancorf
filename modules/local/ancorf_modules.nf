@@ -243,7 +243,8 @@ process ANCESTRAL_ORFS {
 
 	errorStrategy 'retry'
 
-	publishDir "${params.outdir}"
+	publishDir "${params.outdir}/ssearch36_alignments", pattern: "*_ssearch36.tsv"
+    publishDir "${params.outdir}/raw_ancorfs_fasta", pattern: "*_anc_ORFs.f*"
 
 	input:
 		path toali
@@ -251,7 +252,8 @@ process ANCESTRAL_ORFS {
 		path focal_CDS_faa
 
 	output:
-		path "*"
+        path "*_anc_ORFs.f*", emit : raw_ancorfs_fastas
+		path "*_ssearch36.tsv", emit : ssearch36_tsvs
 		
 	"""
 	seq=\$(echo $toali | sed "s/_toalign.fna//")
@@ -280,7 +282,8 @@ process ANCESTRAL_ORFS {
 
 process ANCESTRAL_ORFS_MACSE {
 
-	publishDir "${params.outdir}"
+	publishDir "${params.outdir}/ssearch36_alignments", pattern: "*_ssearch36.tsv"
+    publishDir "${params.outdir}/raw_ancorfs_fasta", pattern: "*_anc_ORFs.f*"
 
 	input:
 		path toali
@@ -288,7 +291,8 @@ process ANCESTRAL_ORFS_MACSE {
 		path focal_CDS_faa
 
 	output:
-		path "*"
+        path "*_anc_ORFs.f*", emit : raw_ancorfs_fastas
+		path "*_ssearch36.tsv", emit : ssearch36_tsvs
 		
 	"""
 	seq=\$(echo $toali | sed "s/_toalign.fna//")
@@ -326,7 +330,8 @@ process ANCESTRAL_ORFS_MACSE_PHYML {
 
 	// errorStrategy { task.attempt <= 1 ? 'retry' : 'ignore' }
 
-	publishDir "${params.outdir}"
+	publishDir "${params.outdir}/ssearch36_alignments", pattern: "*_ssearch36.tsv"
+    publishDir "${params.outdir}/raw_ancorfs_fasta", pattern: "*_anc_ORFs.f*"
 
 	input:
 		path toali
@@ -334,7 +339,8 @@ process ANCESTRAL_ORFS_MACSE_PHYML {
 		path focal_CDS_faa
 
 	output:
-		path "*"
+        path "*_anc_ORFs.f*", emit : raw_ancorfs_fastas, optional: true
+		path "*_ssearch36.tsv", emit : ssearch36_tsvs, optional: true
 		
 	"""
 	seq=\$(echo $toali | sed "s/_toalign.fna//")
@@ -398,5 +404,22 @@ process ANCESTRAL_ORFS_MACSE_PHYML {
 	faOneRecord $focal_CDS_faa \${original_seq} > \${seq}.faa
 	# Ssearch with a tabular blast output format and and minimal e-value of 0.01
 	ssearch36 -m8C -E 0.01 \${seq}.faa \${seq}_anc_ORFs.faa > \${seq}_anc_ORFs_vs_\${seq}_ssearch36.tsv
+	"""
+}
+
+
+process ANCORFS_FASTA {
+
+    publishDir "${params.outdir}/ancorfs_fasta/", mode : 'copy'
+
+	input:
+		path raw_ancorfs_fastas
+		path ssearch36_tsvs
+
+	output:
+		path "*"
+		
+	"""
+	get_ancorfs_fasta.py $ssearch36_tsvs --mode best --mode 1e-3 --mode 1e-2
 	"""
 }

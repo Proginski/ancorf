@@ -5,7 +5,7 @@
 */
 
 log.info "\n"
-log.info "Welcome to DENSE."
+log.info "Welcome to this workflow."
 log.info "\n"
 
 /*
@@ -41,6 +41,7 @@ include { ALIGNMENT_FASTA            } from '../modules/local/ancorf_modules.nf'
 include { ANCESTRAL_ORFS             } from '../modules/local/ancorf_modules.nf'
 include { ANCESTRAL_ORFS_MACSE       } from '../modules/local/ancorf_modules.nf'
 include { ANCESTRAL_ORFS_MACSE_PHYML } from '../modules/local/ancorf_modules.nf'
+include { ANCORFS_FASTA              } from '../modules/local/ancorf_modules.nf'
 
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -139,18 +140,34 @@ workflow ANCORF {
 			CHECK_INPUTS.out.tree,
 			focal_CDS_faa
 			)
+        raw_ancorfs_fastas = ANCESTRAL_ORFS.out.raw_ancorfs_fastas.collect()
+        alignment_tsvs     = ANCESTRAL_ORFS.out.ssearch36_tsvs.collect()
 	} else if (params.mode == "genomes_aligned") {
 		ANCESTRAL_ORFS_MACSE( 
 			ALIGNMENT_FASTA.out.fna.flatten(),
 			CHECK_INPUTS.out.tree,
 			focal_CDS_faa
 			)
+        raw_ancorfs_fastas = ANCESTRAL_ORFS_MACSE.out.raw_ancorfs_fastas.collect()
+        alignment_tsvs     = ANCESTRAL_ORFS_MACSE.out.ssearch36_tsvs.collect()
 	} else if (params.mode == "genes_aligned") {
 		ANCESTRAL_ORFS_MACSE_PHYML( 
 			ALIGNMENT_FASTA.out.fna.flatten(),
 			CHECK_INPUTS.out.tree,
 			focal_CDS_faa
 			)
+        raw_ancorfs_fastas = ANCESTRAL_ORFS_MACSE_PHYML.out.raw_ancorfs_fastas.collect()
+        alignment_tsvs     = ANCESTRAL_ORFS_MACSE_PHYML.out.ssearch36_tsvs.collect()
 	}
 
+        /*
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        Get a FASTA with the ancORFs.
+        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+        */
+
+	ANCORFS_FASTA(
+        raw_ancorfs_fastas,
+        alignment_tsvs
+        )
  }
