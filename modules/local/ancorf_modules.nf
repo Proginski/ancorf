@@ -487,9 +487,10 @@ process ANCESTRAL_ORFS_PREQUEL {
 	phyloFit --seed 12546582 --msa \${seq}_aligned.fna --tree phylip_names_tree.nwk
 	tree_prune_with_fasta.py phylip_names_tree.nwk \${seq}_aligned.fna pruned_tree.nwk
 	gotree_amd64_linux rename -i pruned_tree.nwk -l 1 --tips=false --internal -a | sed 's/N000/N/g' > final_tree.nwk
-	cat  phyloFit.mod | sed "s/^TREE\:.*/TREE: $(cat final_tree.nwk)/" > phylofit_corTree.mod
+	cat  phyloFit.mod | sed "s/^TREE\\:.*/TREE: \$(cat final_tree.nwk)/" > phylofit_corTree.mod
 	prequel \${seq}_aligned.fna phylofit_corTree.mod \${seq}
 	prequel \${seq}_aligned.fna phylofit_corTree.mod \${seq} -n
+	cat \${seq}.N*.fa > \${seq}.anc.fas
 	
 	# Select the node that corresponds to the most recent common ancestor of the focal genome and its closest outgroup neighbor(s).
 	select_ancestor_node.py $tree $toali final_tree.nwk \${seq}.anc.fas -o \${seq}_anc.fna.tmp
