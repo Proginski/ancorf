@@ -408,6 +408,56 @@ process ANCESTRAL_ORFS_MACSE_PHYML {
 }
 
 
+process ANCESTRAL_ORFS_RAXML {
+
+	publishDir "${params.outdir}/ssearch36_alignments", pattern: "*_ssearch36.tsv"
+    publishDir "${params.outdir}/raw_ancorfs_fasta", pattern: "*_anc_ORFs.f*"
+
+	input:
+		path toali
+		path tree
+		path focal_CDS_faa
+
+	output:
+        path "*_anc_ORFs.f*", emit : raw_ancorfs_fastas
+		path "*_ssearch36.tsv", emit : ssearch36_tsvs
+		
+	"""
+	seq=\$(echo $toali | sed "s/_toalign.fna//")
+
+	# Align
+	java -jar ${projectDir}/bin/macse_v2.07.jar -prog alignSequences -seq $toali -out_NT \${seq}_aligned.fna
+	
+	# Correct the NT file by replacing '!' characters by '-'
+	sed 's|!|-|g' \${seq}_aligned.fna > \${seq}_aligned.fna.tmp
+	# Remove description from the headers
+	awk '/^>/ {print ">"substr(\$1, 2)} !/^>/ {print \$0}' \${seq}_aligned.fna.tmp > \${seq}_aligned.fna ; rm \${seq}_aligned.fna.tmp
+
+	# Build a tree based on the alignment, while preserving the original whole-genome tree topology.
+	tree_prune_with_fasta.py $tree \${seq}_aligned.fna ${tree}_pruned
+	raxmlHPC -s \${seq}_aligned.fna -m GTRGAMMA -g ${tree}_pruned -n \${seq} -p 12345
+
+	# Reconstruct the ancestral sequence.
+	prank -d=\${seq}_aligned.fna -t=RAxML_bestTree.\${seq} -o=\${seq} -once -showanc -keep
+
+	# Select the node that corresponds to the most recent common ancestor of the focal genome and its closest outgroup neighbor(s).
+	select_ancestor_node.py $tree $toali \${seq}.anc.dnd \${seq}.anc.fas -o \${seq}_anc.fna.tmp
+	# Remove line breaks and '-' characters from the ancestral sequence.
+	awk 'BEGIN {n=0;} /^>/ {if(n>0) printf("\\n%s\\n",\$0); else printf("%s\\n",\$0); n++; next;} {printf("%s",\$0);} END {printf("\\n");}' \${seq}_anc.fna.tmp | tr -d '-' > \${seq}_anc.fna ; rm \${seq}_anc.fna.tmp
+
+	# Retrieve all the ORFs from the ancestral sequence.
+	# --strand s (=sense), --type both (nucl and AA), --min_size 60 (minimal length 60 nucl)
+	fasta_get_ORFs.py \${seq}_anc.fna --min_size 60 --strand s --type both --output \${seq}_anc_ORFs
+
+	# Perform a pairwise alignment of each of the ancestral ORFs with the query CDS
+	original_seq=\$(echo \${seq} | sed -e "s~__COLON__~:~g" -e "s~__SLASH__~/~g" -e "s~__EXCLAMATION__~!~g" -e "s~__PIPE__~|~g")
+	faOneRecord $focal_CDS_faa \${original_seq} > \${seq}.faa
+	# Ssearch with a tabular blast output format and and minimal e-value of 0.01
+	ssearch36 -m8C -E 0.01 \${seq}.faa \${seq}_anc_ORFs.faa > \${seq}_anc_ORFs_vs_\${seq}_ssearch36.tsv
+	"""
+}
+
+
 process ANCORFS_FASTA {
 
     publishDir "${params.outdir}/ancorfs_fasta/", mode : 'copy'

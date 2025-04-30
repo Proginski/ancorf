@@ -53,7 +53,7 @@
         "mode": {
           "type": "string",
           "description": "The mode of the pipeline.",
-          "enum": ["genomes_not_aligned", "genomes_aligned", "genes_aligned"]
+          "enum": ["genomes_not_aligned", "genomes_aligned", "genes_aligned", "raxml"]
         }
       },
       "required": ["focal","tree"]

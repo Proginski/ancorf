@@ -41,6 +41,7 @@ include { ALIGNMENT_FASTA            } from '../modules/local/ancorf_modules.nf'
 include { ANCESTRAL_ORFS             } from '../modules/local/ancorf_modules.nf'
 include { ANCESTRAL_ORFS_MACSE       } from '../modules/local/ancorf_modules.nf'
 include { ANCESTRAL_ORFS_MACSE_PHYML } from '../modules/local/ancorf_modules.nf'
+include { ANCESTRAL_ORFS_RAXML       } from '../modules/local/ancorf_modules.nf'
 include { ANCORFS_FASTA              } from '../modules/local/ancorf_modules.nf'
 
 /*
@@ -158,6 +159,14 @@ workflow ANCORF {
 			)
         raw_ancorfs_fastas = ANCESTRAL_ORFS_MACSE_PHYML.out.raw_ancorfs_fastas.collect()
         alignment_tsvs     = ANCESTRAL_ORFS_MACSE_PHYML.out.ssearch36_tsvs.collect()
+	} else if (params.mode == "raxml") {
+		ANCESTRAL_ORFS_RAXML( 
+			ALIGNMENT_FASTA.out.fna.flatten(),
+			CHECK_INPUTS.out.tree,
+			focal_CDS_faa
+			)
+        raw_ancorfs_fastas = ANCESTRAL_ORFS_RAXML.out.raw_ancorfs_fastas.collect()
+        alignment_tsvs     = ANCESTRAL_ORFS_RAXML.out.ssearch36_tsvs.collect()
 	}
 
         /*

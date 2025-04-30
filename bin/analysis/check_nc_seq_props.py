@@ -2,14 +2,17 @@
 # -*- coding: utf-8 -*-
 
 """
+The goal of this program is to retrieve the non-coding sequences of the first outgroup genomes for each ancestral reconstruction.
+
 This program reads a newick tree.
-For every _to_align.fna file in a directory, it reads the corresponding _to_align.tree file and write a fasta with the outgroup genomes.
+For every _to_align.fna file in a directory, it reads the corresponding _to_align.tree file and writes a fasta with the outgroup genomes.
 """
 
 import argparse
 import dendropy
 from Bio import SeqIO
 import glob
+import os
 import sys
 from Bio.SeqRecord import SeqRecord
 
@@ -17,67 +20,53 @@ from Bio.SeqRecord import SeqRecord
 def main():
     parser = argparse.ArgumentParser(description='Find MRCA of focal genome and closest outgroup genome.')
     parser.add_argument('tree_file', help='The Newick tree file of the genomes.')
-    parser.add_argument('directory', help='The FASTA file with genome tags.')
+    parser.add_argument('input_directory', help='The input directory with the "_to_align" FASTA files with genome tags.')
+    parser.add_argument('output_directory', help='The output directory to save the outgroup FASTA files.')
     parser.add_argument('--first', '-f', action='store_true', help='Only use the first outgroup.')
     args = parser.parse_args()
 
-    # print("Reading tree file...")
-    tree = dendropy.Tree.get(path=args.tree_file,
-        schema="newick",
-        rooting='force-rooted')
-    # print(tree.as_ascii_plot())
+    # Ensure the output directory exists
+    if not os.path.exists(args.output_directory):
+        os.makedirs(args.output_directory)
 
-    # Get the list of file whose name ends with "_toalign_AA.fna" in the directory
-    fasta_list = glob.glob(args.directory+'/*_toalign_AA.fna')
-    # Take any file as an example
+    # Read the tree file
+    tree = dendropy.Tree.get(path=args.tree_file, schema="newick", rooting='force-rooted')
+
+    # Get the list of files whose name ends with "_toalign.fna" in the input directory
+    fasta_list = glob.glob(os.path.join(args.input_directory, '*_toalign.fna'))
+
+    # Take any file as an example in order to identify the focal genome
     fasta_file = fasta_list[0]
     focal = None
     for record in SeqIO.parse(fasta_file, "fasta"):
-            tag = record.description.split()[1]
-            if tag == "focal":
-                focal = record.id
-                print(f"Focal genome: {focal}", file=sys.stderr)
-                break
-    
+        tag = record.description.split()[1]
+        if tag == "focal":
+            focal = record.id
+            print(f"Focal genome: {focal}", file=sys.stderr)
+            break
 
-    #### TREE INFORMATION ####
-    # Open the tree file to order the neighbors with respect to the focal genome.
-    # To do so, get the distance between the focal genome and each neighbor.
-    # Two of more neighbors of the same "outgroup" should have the same distance to the focal genome.
-    # The classical 'time of divergence' may lead to small differences if branches are not of equal length.
-    # For example, Pan paniscus and Pan troglodytes form a possible "outgroup" in the human-and-its-neighbors tree,
-    # but their calculated time of divergence with human may not be the same.
-    # So just get the rank of the most recent common ancestor (MRCA) node.
+    # Get the list of taxon labels (e.g., genome names)
+    taxon_labels = [tree.taxon_namespace[i].label for i in range(len(tree.taxon_namespace))]
 
-    # Get the list of taxon labels (e.g. genome names)
-    taxon_labels = [ tree.taxon_namespace[i].label for i in range(0,len(tree.taxon_namespace)) ]
-
-    # Set every edge length to 1. By doing so, we are sure the calc_node_root_distances can be used
-    # Besides, we do not care about the actual value of each edge length in this case.
+    # Set every edge length to 1
     for node in tree.preorder_node_iter():
         node.edge.length = 1
 
-    # Adds attribute “root_distance” to each node, with value set to the sum of 
-    # edge lengths from the node to the root. Returns list of distances. 
-    tree.calc_node_root_distances(return_leaf_distances_only=False) 
+    # Calculate root distances
+    tree.calc_node_root_distances(return_leaf_distances_only=False)
 
-    # For each genome in taxon_labels, get its most recent common ancestor with 
-    # the focal genome (= a node), and get its distance to the tree root.
-    root_distance = { name:int(tree.mrca(taxon_labels=[focal, name]).root_distance) for name in taxon_labels if name != focal }
-    root_distance[focal]=max(root_distance.values()) +1
+    # Get root distances for each genome
+    root_distance = {name: int(tree.mrca(taxon_labels=[focal, name]).root_distance) for name in taxon_labels if name != focal}
+    root_distance[focal] = max(root_distance.values()) + 1
 
-    # Reverse the dictionary to make further comparisons more intuitive (focal is 0, its closest neighbor is 1, etc.)
+    # Reverse the dictionary for further comparisons
     max_distance = max(root_distance.values())
-    focal_distance = { genome: max_distance - root_distance[genome] for genome in root_distance }
+    focal_distance = {genome: max_distance - root_distance[genome] for genome in root_distance}
 
     # List of genomes sorted by distance to the focal genome
     sorted_genomes = sorted(focal_distance, key=focal_distance.get)
 
-
-
-
-    # For each FASTA :
-    # print(f"Found {len(fasta_list)} files.")
+    # Process each FASTA file
     for fasta_file in fasta_list:
         genomes_names = []
         cds_names = []
@@ -103,24 +92,21 @@ def main():
         if args.first and len(outgroup_genomes) > 0:
             first_outgroup_distance = min([distance for distance in genome_distances if distance > max_CDS_distance])
             outgroup_genomes = [name for name in outgroup_genomes if focal_distance[name] == first_outgroup_distance]
-        
+
         if len(outgroup_genomes) > 0:
             # Get the id of the sequences of the outgroup genomes
             outgroup_ids = [record.id for record in SeqIO.parse(fasta_file, "fasta") if record.id in outgroup_genomes]
             # Retrieve the sequence in the nucleotides alignment file
-            nuc_aligned_file = fasta_file.replace("_toalign_AA.fna", "_aligned.fna")
-            outgroup_records = [record for record in SeqIO.parse(nuc_aligned_file, "fasta") if record.id in outgroup_ids]
-            # Convert this alignment fasta file into a regular fasta file (remove gaps in the sequences)
+            outgroup_records = [record for record in SeqIO.parse(fasta_file, "fasta") if record.id in outgroup_ids]
+            # Use the fasta name as the description
             for record in outgroup_records:
-                record.seq = record.seq.ungap('-')
-            # Write the fasta file 
-            outgroup_file_nuc = fasta_file.replace("_toalign_AA.fna", "_outgroups.fna")
+                record.description = fasta_file.split("/")[-1].replace("_toalign.fna", "")
+            # Write the fasta file to the output directory
+            if args.first:
+                outgroup_file_nuc = os.path.join(args.output_directory, os.path.basename(fasta_file).replace("_toalign.fna", "_first_outgroup.fna"))
+            else:
+                outgroup_file_nuc = os.path.join(args.output_directory, os.path.basename(fasta_file).replace("_toalign.fna", "_outgroups.fna"))
             SeqIO.write(outgroup_records, outgroup_file_nuc, "fasta")
-            # SeqIO.write(outgroup_records, sys.stdout, "fasta")
-
-
-
-
 
 
 if __name__ == '__main__':
