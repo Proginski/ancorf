@@ -490,6 +490,7 @@ process ANCESTRAL_ORFS_PREQUEL {
 	cat  phyloFit.mod | sed "s/^TREE\\:.*/TREE: \$(cat final_tree.nwk)/" > phylofit_corTree.mod
 	prequel \${seq}_aligned.fna phylofit_corTree.mod \${seq}
 	prequel \${seq}_aligned.fna phylofit_corTree.mod \${seq} -n
+	cat \${seq}.N*.fa > \${seq}.anc.fas
 	
 	# Select the node that corresponds to the most recent common ancestor of the focal genome and its closest outgroup neighbor(s).
 	select_ancestor_node.py $tree $toali final_tree.nwk \${seq}.anc.fas -o \${seq}_anc.fna.tmp
