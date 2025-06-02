@@ -11,6 +11,7 @@ shuffled together with the n flanking codons (default : 1 at each side).
 
 import random
 import sys
+from copy import deepcopy
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
@@ -24,6 +25,23 @@ def check_fasta_file(fasta_file):
         if '>' not in content:
             print(f"Error: {fasta_file} has no entries", file=sys.stderr)
             sys.exit(1)
+
+def generate_unique_ids(records):
+    """Assign unique IDs to all records without modifying the original objects."""
+    occ_dict = {}
+    new_records = []
+    for record in records:
+        # Check if the record ID already exists in the dictionary
+        if record.id in occ_dict:
+            occ_dict[record.id] += 1
+        else:
+            occ_dict[record.id] = 1
+        # Create a deep copy of the record and assign a new ID
+        new_record = deepcopy(record)
+        new_record.id = f"{record.id}_{occ_dict[record.id]}"
+        new_record.description = ""
+        new_records.append(new_record)
+    return new_records
 
 def shuffle_out(seq, side_codons=1):
     stop_codons = ['TAA', 'TAG', 'TGA']
@@ -76,6 +94,9 @@ def shuffle_sequence(input_file, stop, nb_seq, side_codons, output):
         elif nb_seq > len(records):
             while len(records) < nb_seq:
                 records.extend(random.sample(records, min(len(records), nb_seq - len(records))))
+
+    # Assign unique IDs
+    records = generate_unique_ids(records)
 
     # Convert all sequences to uppercase and shuffle them
     for record in records:
