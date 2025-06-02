@@ -38,7 +38,7 @@ def read_fasta(fasta_file):
         print(f"FASTA file {fasta_file} not found.")
     return sequences
 
-def process_tsv_file(tsv, mode, fna_file, faa_file):
+def process_tsv_file(tsv, mode, fna_file, faa_file, written_pairs):
     with open(tsv, 'r') as file:
         reader = csv.reader(file, delimiter='\t')
         
@@ -65,11 +65,12 @@ def process_tsv_file(tsv, mode, fna_file, faa_file):
             if evalue is None:
                 continue
             evalue = float(evalue)
+            pair = (row_dict['query_id'], row_dict['subject_id'])
             if mode == 'best':
                 if best_hit is None or evalue < float(best_hit['evalue']):
                     best_hit = row_dict
             else:
-                if evalue <= float(mode):
+                if evalue <= float(mode) and pair not in written_pairs:
                     query_id = row_dict['query_id']
                     fasta_sequences = read_fasta(f"{sanitize_filename(query_id)}_anc_ORFs.fna")
                     translated_sequences = read_fasta(f"{sanitize_filename(query_id)}_anc_ORFs.faa")
@@ -83,26 +84,31 @@ def process_tsv_file(tsv, mode, fna_file, faa_file):
                         faa_file.write(f"{translated_sequences[row_dict['subject_id']]}\n")
                     else:
                         raise FileNotFoundError(f"Translated sequence {row_dict['subject_id']} not found in {query_id}_anc_ORFs.faa")
+                    written_pairs.add(pair)
         
         if mode == 'best' and best_hit:
-            query_id = best_hit['query_id']
-            fasta_sequences = read_fasta(f"{sanitize_filename(query_id)}_anc_ORFs.fna")
-            translated_sequences = read_fasta(f"{sanitize_filename(query_id)}_anc_ORFs.faa")
-            if best_hit['subject_id'] in fasta_sequences:
-                fna_file.write(f">{best_hit['query_id']}__vs__{best_hit['subject_id']}\n")
-                fna_file.write(f"{fasta_sequences[best_hit['subject_id']]}\n")
-            else:
-                raise FileNotFoundError(f"Sequence {best_hit['subject_id']} not found in {query_id}_anc_ORFs.fna")
-            if best_hit['subject_id'] in translated_sequences:
-                faa_file.write(f">{best_hit['query_id']}__vs__{best_hit['subject_id']}\n")
-                faa_file.write(f"{translated_sequences[best_hit['subject_id']]}\n")
-            else:
-                raise FileNotFoundError(f"Translated sequence {best_hit['subject_id']} not found in {query_id}_anc_ORFs.faa")
+            pair = (best_hit['query_id'], best_hit['subject_id'])
+            if pair not in written_pairs:
+                query_id = best_hit['query_id']
+                fasta_sequences = read_fasta(f"{sanitize_filename(query_id)}_anc_ORFs.fna")
+                translated_sequences = read_fasta(f"{sanitize_filename(query_id)}_anc_ORFs.faa")
+                if best_hit['subject_id'] in fasta_sequences:
+                    fna_file.write(f">{best_hit['query_id']}__vs__{best_hit['subject_id']}\n")
+                    fna_file.write(f"{fasta_sequences[best_hit['subject_id']]}\n")
+                else:
+                    raise FileNotFoundError(f"Sequence {best_hit['subject_id']} not found in {query_id}_anc_ORFs.fna")
+                if best_hit['subject_id'] in translated_sequences:
+                    faa_file.write(f">{best_hit['query_id']}__vs__{best_hit['subject_id']}\n")
+                    faa_file.write(f"{translated_sequences[best_hit['subject_id']]}\n")
+                else:
+                    raise FileNotFoundError(f"Translated sequence {best_hit['subject_id']} not found in {query_id}_anc_ORFs.faa")
+                written_pairs.add(pair)
 
 def get_ancorfs_fasta(tsv_files, mode):
+    written_pairs = set()
     with open(f'ancORFs_{mode}.fna', 'w') as fna_file, open(f'ancORFs_{mode}.faa', 'w') as faa_file:
         for tsv in tsv_files:
-            process_tsv_file(tsv, mode, fna_file, faa_file)
+            process_tsv_file(tsv, mode, fna_file, faa_file, written_pairs)
 
 def main():
     parser = argparse.ArgumentParser(description='Build FASTA files with ancestral ORFs.')
