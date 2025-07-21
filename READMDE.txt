@@ -1,5 +1,0 @@
-Because by default, PRANK iterates 5 times and produces a new tree each time, one should use "-once" if he provides a user-defined ("true") tree. (see: https://github.com/ariloytynoja/prank-msa/issues/5)
-
-"Ancestral sequences can be outputted for alignments generated with PRANK but they can also be inferred for existing alignments. While PRANK by default removes all the gap characters in the input data, this can be disabled with option -keep and it then reads the alignment as it is. Thus with command:  
-prank -d=alignment_pep.fas -showanc -showevents -keep -o=output_ancestors -njtree [OR -t=treefile]
-PRANK will infer the ancestral sequences for an exiting alignment (this one available at alignment_pep.fas)." (see: https://ariloytynoja.github.io/prank-msa/#using-prank)
