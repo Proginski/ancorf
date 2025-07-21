@@ -33,6 +33,28 @@ def main():
         else:
             sequence_counts[phylip_name] = 1
 
+    # Distribute the 1000 output sequences proportionally based on the counts
+    # Normalize the counts to ensure they sum to 1000
+    total_sequences = sum(sequence_counts.values())
+    sequence_counts = {k: round(v / total_sequences * 1000) for k, v in sequence_counts.items()}
+    total_sequences = sum(sequence_counts.values())
+    if total_sequences < 1000:
+        num_sequences_to_add = 1000 - total_sequences
+        for i in range(num_sequences_to_add):
+            # Pick a random key in sequence_counts to add an extra sequence
+            random_key = random.choice(list(sequence_counts.keys()))
+            sequence_counts[random_key] += 1
+    elif total_sequences > 1000:
+        num_sequences_to_remove = total_sequences - 1000
+        for i in range(num_sequences_to_remove):
+            # Pick a random key in sequence_counts to remove a sequence
+            volonteer = False
+            while not volonteer:
+                random_key = random.choice(list(sequence_counts.keys()))
+                if sequence_counts[random_key] > 0:
+                    volonteer = True
+                    sequence_counts[random_key] -= 1
+    
     # For each phylip_name, pick a number of random sequences from the corresponding iORF file
     total_count = sum(sequence_counts.values())
     output_records = []
@@ -40,9 +62,7 @@ def main():
         genome_name = row['genome_name']
         phylip_name = row['phylip_name']
         if phylip_name in sequence_counts:
-            count = sequence_counts[phylip_name]
-            proportion = count / total_count
-            num_to_select = round(proportion * 1000)
+            num_to_select = sequence_counts[phylip_name]
             iorf_file = f"{args.iorf_dir}/{genome_name}_iORF_1000.fna"
             iorf_records = list(SeqIO.parse(iorf_file, "fasta"))
             if len(iorf_records) >= num_to_select:
