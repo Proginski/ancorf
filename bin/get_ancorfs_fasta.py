@@ -15,7 +15,7 @@ import csv
 import os
 
 def sanitize_filename(filename):
-    return filename.replace(":", "__COLON__").replace("/", "__SLASH__").replace("!", "__EXCLAMATION__").replace("|", "__PIPE__")
+    return filename.replace(":", "__COLON__").replace("/", "__SLASH__").replace("!", "__EXCLAMATION__").replace("|", "__PIPE__").replace("(", "__OPEN_PAREN__").replace(")", "__CLOSE_PAREN__").replace("+", "__PLUS__")
 
 def read_fasta(fasta_file):
     sequences = {}

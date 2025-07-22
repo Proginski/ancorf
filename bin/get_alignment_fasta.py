@@ -20,7 +20,6 @@ from Bio.SeqRecord import SeqRecord
 from Bio.Seq import Seq
 from pybedtools.bedtool import BedTool
 
-
 parser = argparse.ArgumentParser(description='Generate a FASTA file with the CDS of the focal genome, and the CDS or the intergenic region of its neighbors.')
 parser.add_argument('focal_list', type=str, help='Text file with the list of CDS from the focal to align.')
 parser.add_argument('trg_table', type=str, help='TRG_table.tsv file from DENSE.')
@@ -76,12 +75,10 @@ with open(args.trg_table) as tt:
 # Build a nucleotide FASTA for the queries
 entries_dic = defaultdict(lambda: defaultdict(list))
 
-with open(focal+"_CDS_elongated.fna", "r") as input_handle:
+with open("focal_CDS_elongated.fna", "r") as input_handle:
     for record in SeqIO.parse(input_handle, "fasta"):
         record.id = record.id.replace("_elongated","")
-        if record.id in queries:
-            # Store the record in the dictionary
-            entries_dic[focal][record.id] = record
+        entries_dic[focal][record.id] = record
 
 # For each neighbor, build a nucleotide FASTA with the CDS collected in the dictionary
 for name in names:
@@ -94,14 +91,20 @@ for name in names:
                 if record.id in neighbors_dic[name]["CDS"]:
                     entries_dic[name][record.id] = record
 
+# print(entries_dic)
+print("Entries dictionary built.")
+print(f"Number of entries for {focal}: {len(entries_dic[focal])}")
+for query in entries_dic[focal]:
+    print(f"Query {query} , value {entries_dic[focal][query]}")
+
 # Build a nucleotide FASTA for further alignment
 # Only keep queries with at least --num_outgroups genome (i.e. non-coding) outgroups neighbors 
 for query in hits_dic:
     if len(hits_dic[query]) > 1:
-        print(query)
+        print(f"Processing {query} with {len(hits_dic[query])} neighbors.")
         # Build a nucleotide FASTA file with the CDS of the focal genome, and the CDS or the intergenic region of its neighbors
         def sanitize_filename(filename):
-            return filename.replace(":", "__COLON__").replace("/", "__SLASH__").replace("!", "__EXCLAMATION__").replace("|", "__PIPE__")
+            return filename.replace(":", "__COLON__").replace("/", "__SLASH__").replace("!", "__EXCLAMATION__").replace("|", "__PIPE__").replace("(", "__OPEN_PAREN__").replace(")", "__CLOSE_PAREN__").replace("+", "__PLUS__")
 
         query_sanitized = sanitize_filename(query)
         with open(f"{query_sanitized}_toalign.fna", "w") as output_handle:
@@ -137,3 +140,5 @@ for query in hits_dic:
                         record.id = neighbor
                         record.description = "genome"
                         SeqIO.write(record, output_handle, "fasta")
+    else:
+        print(f"Skipping {query} as it has no neighbors hits.")

@@ -224,6 +224,7 @@ process ALIGNMENT_FASTA {
 		path CDS_elongated
 		path gfastas
 		path fais
+		path focal_CDS_elongated_fna, stageAs: "focal_CDS_elongated.fna"
 
 	output:
 		// These output are optional since CDS with less than 2 neighbors with an homolog are filtered out at this step.
@@ -272,7 +273,8 @@ process ANCESTRAL_ORFS {
 	fasta_get_ORFs.py \${seq}_anc.fna --min_size 60 --strand s --type both --output \${seq}_anc_ORFs
 
 	# Perform a pairwise alignment of each of the ancestral ORFs with the query CDS
-	original_seq=\$(echo \${seq} | sed -e "s~__COLON__~:~g" -e "s~__SLASH__~/~g" -e "s~__EXCLAMATION__~!~g" -e "s~__PIPE__~|~g")
+	original_seq=\$(echo \${seq} | sed -e "s~__COLON__~:~g" -e "s~__SLASH__~/~g" -e "s~__EXCLAMATION__~!~g" -e "s~__PIPE__~|~g" -e "s~__OPEN_PAREN__~(~g" -e "s~__CLOSE_PAREN__~)~g" -e "s~__PLUS__~+~g")
+	echo "Original sequence name: \$original_seq"
 	faOneRecord $focal_CDS_faa \${original_seq} > \${seq}.faa
 	# Ssearch with a tabular blast output format and and minimal e-value of 0.01
 	ssearch36 -m8C -E 0.01 \${seq}.faa \${seq}_anc_ORFs.faa > \${seq}_anc_ORFs_vs_\${seq}_ssearch36.tsv
@@ -318,7 +320,8 @@ process ANCESTRAL_ORFS_MACSE {
 	fasta_get_ORFs.py \${seq}_anc.fna --min_size 60 --strand s --type both --output \${seq}_anc_ORFs
 
 	# Perform a pairwise alignment of each of the ancestral ORFs with the query CDS
-	original_seq=\$(echo \${seq} | sed -e "s~__COLON__~:~g" -e "s~__SLASH__~/~g" -e "s~__EXCLAMATION__~!~g" -e "s~__PIPE__~|~g")
+	original_seq=\$(echo \${seq} | sed -e "s~__COLON__~:~g" -e "s~__SLASH__~/~g" -e "s~__EXCLAMATION__~!~g" -e "s~__PIPE__~|~g" -e "s~__OPEN_PAREN__~(~g" -e "s~__CLOSE_PAREN__~)~g" -e "s~__PLUS__~+~g")
+	echo "Original sequence name: \$original_seq"
 	faOneRecord $focal_CDS_faa \${original_seq} > \${seq}.faa
 	# Ssearch with a tabular blast output format and and minimal e-value of 0.01
 	ssearch36 -m8C -E 0.01 \${seq}.faa \${seq}_anc_ORFs.faa > \${seq}_anc_ORFs_vs_\${seq}_ssearch36.tsv

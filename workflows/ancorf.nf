@@ -127,7 +127,8 @@ workflow ANCORF {
 		focal,
 		elongate_cds_fastas,
 		elongate_cds_gfastas,
-		elongate_cds_fais
+		elongate_cds_fais,
+		file(params.focal_CDS_elongated_fna)
 		)
 
 	/*
@@ -148,7 +149,7 @@ workflow ANCORF {
 		ANCESTRAL_ORFS_MACSE( 
 			ALIGNMENT_FASTA.out.fna.flatten(),
 			CHECK_INPUTS.out.tree,
-			focal_CDS_faa
+			file(params.focal_CDS_faa)
 			)
         raw_ancorfs_fastas = ANCESTRAL_ORFS_MACSE.out.raw_ancorfs_fastas.collect()
         alignment_tsvs     = ANCESTRAL_ORFS_MACSE.out.ssearch36_tsvs.collect()
