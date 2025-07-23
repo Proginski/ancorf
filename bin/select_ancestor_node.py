@@ -71,25 +71,29 @@ def main():
     # List of genomes sorted by distance to the focal genome
     sorted_genomes = sorted(focal_distance, key=focal_distance.get)
 
-    # Get the maximum distance for a CDS match
-    # Genome matches that are farther than this distance are "outgroup" matches
-    CDS_distances = [focal_distance[name] for name in sorted_genomes if name in cds_names]
-    genome_distances = [focal_distance[name] for name in sorted_genomes if name in genomes_names]
+    # # Get the maximum distance for a CDS match
+    # # Genome matches that are farther than this distance are "outgroup" matches
+    # CDS_distances = [focal_distance[name] for name in sorted_genomes if name in cds_names]
+    # genome_distances = [focal_distance[name] for name in sorted_genomes if name in genomes_names]
 
-    if len(CDS_distances) > 0:
-        max_CDS_distance = max(CDS_distances)
-    else:
-        max_CDS_distance = 0
-    outgroup_distances = [distance for distance in genome_distances if distance > max_CDS_distance]
-    if len(outgroup_distances) > 0:
-        min_outgroup_distance = min(outgroup_distances)
-        first_outgroup_names = [name for name in sorted_genomes if name in genomes_names and focal_distance[name] == min_outgroup_distance]
-    else:
-        print("No outgroup distances found, using max distance among CDS or genome distances.")
-        min_outgroup_distance = max([distance for distance in genome_distances + CDS_distances])
-        print(f"Using max distance {min_outgroup_distance} as the minimum outgroup distance.")
-        first_outgroup_names = [name for name in sorted_genomes if focal_distance[name] == min_outgroup_distance]
-    print(f"The closest outgroup genome(s) to {focal} is/are {first_outgroup_names}.")
+    # if len(CDS_distances) > 0:
+    #     max_CDS_distance = max(CDS_distances)
+    # else:
+    #     max_CDS_distance = 0
+    # outgroup_distances = [distance for distance in genome_distances if distance > max_CDS_distance]
+    # if len(outgroup_distances) > 0:
+    #     min_outgroup_distance = min(outgroup_distances)
+    #     first_outgroup_names = [name for name in sorted_genomes if name in genomes_names and focal_distance[name] == min_outgroup_distance]
+    # else:
+    #     print("No outgroup distances found, using max distance among CDS or genome distances.")
+    #     min_outgroup_distance = max([distance for distance in genome_distances + CDS_distances])
+    #     print(f"Using max distance {min_outgroup_distance} as the minimum outgroup distance.")
+    #     first_outgroup_names = [name for name in sorted_genomes if focal_distance[name] == min_outgroup_distance]
+    # print(f"The closest outgroup genome(s) to {focal} is/are {first_outgroup_names}.")
+
+    hit_distances = [ focal_distance[name] for name in sorted_genomes if name in genomes_names or name in cds_names ]
+    penultimate_hit_distance = sorted(hit_distances)[-2] if len(hit_distances) > 1 else sorted(hit_distances)[0]
+    first_outgroup_names = [ name for name in sorted_genomes if focal_distance[name] == penultimate_hit_distance ]
 
     gene_tree = dendropy.Tree.get(path=args.prank_tree_file,
         schema="newick",
