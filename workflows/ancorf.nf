@@ -125,9 +125,7 @@ workflow ANCORF {
 		file(params.queries), 
 		CHECK_INPUTS.out.trg_table,
 		focal,
-		elongate_cds_fastas,
-		elongate_cds_gfastas,
-		elongate_cds_fais,
+		channel.fromPath(params.CDS_elongated_fna).collect(),
 		file(params.focal_CDS_elongated_fna)
 		)
 

@@ -222,8 +222,6 @@ process ALIGNMENT_FASTA {
 		path TRG_table
 		val  focal
 		path CDS_elongated
-		path gfastas
-		path fais
 		path focal_CDS_elongated_fna, stageAs: "focal_CDS_elongated.fna"
 
 	output:

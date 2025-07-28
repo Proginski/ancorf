@@ -70,6 +70,7 @@ with open(args.trg_table) as tt:
                 sys.exit(f"Error: target_type already in the dictionary. {line}")
             if add_to_neighbors:
                 neighbors_dic[neighbor][target_type].append(target)
+                print(f"DEBUG: Added to neighbors_dic[{neighbor}][{target_type}]: {target}")
 
 
 # Build a nucleotide FASTA for the queries
@@ -94,8 +95,10 @@ for name in names:
 # print(entries_dic)
 print("Entries dictionary built.")
 print(f"Number of entries for {focal}: {len(entries_dic[focal])}")
+print(f"DEBUG: Type of entries_dic[focal]: {type(entries_dic[focal])}")
 for query in entries_dic[focal]:
-    print(f"Query {query} , value {entries_dic[focal][query]}")
+    print(f"Query {query} , value type: {type(entries_dic[focal][query])}, value {entries_dic[focal][query]}")
+    break  # Just print first one to avoid spam
 
 # Build a nucleotide FASTA for further alignment
 # Only keep queries with at least --num_outgroups genome (i.e. non-coding) outgroups neighbors 
@@ -116,6 +119,12 @@ for query in hits_dic:
             # Also write the CDS of the neighbors
             for neighbor in hits_dic[query]:
                 if "CDS" in hits_dic[query][neighbor]:
+                    cds_target = hits_dic[query][neighbor]["CDS"]
+                    print(f"DEBUG: Looking for CDS target '{cds_target}' in neighbor '{neighbor}'")
+                    print(f"DEBUG: Available keys in entries_dic[{neighbor}]: {list(entries_dic[neighbor].keys())}")
+                    print(f"DEBUG: Type of entries_dic[{neighbor}][{cds_target}]: {type(entries_dic[neighbor][cds_target])}")
+                    print(f"DEBUG: Value: {entries_dic[neighbor][cds_target]}")
+                    
                     # Change the header to the name of the genome
                     entries_dic[neighbor][hits_dic[query][neighbor]["CDS"]].id = neighbor
                     entries_dic[neighbor][hits_dic[query][neighbor]["CDS"]].description = "CDS"
