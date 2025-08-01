@@ -31,7 +31,8 @@ nextflow run proginski/ancorf -profile singularity --gendir data/test/genomes/ -
 > The test command including the (first and only one) pull of the Dockerhub image took about 7m on a computer with 10 CPUs and 20Gb of RAM
 
 
-> [!WARNING] The PRANK algorithm presents an intrinsic variability, which might marginally cause the results to fluctuate.
+> [!WARNING]
+> The PRANK algorithm presents an intrinsic variability, which might marginally cause the results to fluctuate.
 
 ## Container Requirements
 
