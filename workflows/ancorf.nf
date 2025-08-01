@@ -39,8 +39,8 @@ include { EXTRACT_CDS                } from '../modules/local/ancorf_modules.nf'
 include { ELONGATE_CDS               } from '../modules/local/ancorf_modules.nf'
 include { ALIGNMENT_FASTA            } from '../modules/local/ancorf_modules.nf'
 include { ANCESTRAL_ORFS             } from '../modules/local/ancorf_modules.nf'
-include { ANCESTRAL_ORFS_MACSE       } from '../modules/local/ancorf_modules.nf'
-include { ANCESTRAL_ORFS_MACSE_PHYML } from '../modules/local/ancorf_modules.nf'
+include { ANCESTRAL_ORFS_PRANK       } from '../modules/local/ancorf_modules.nf'
+include { ANCESTRAL_ORFS_PRANK_PHYML } from '../modules/local/ancorf_modules.nf'
 include { ANCESTRAL_ORFS_RAXML       } from '../modules/local/ancorf_modules.nf'
 include { ANCESTRAL_ORFS_PREQUEL     } from '../modules/local/ancorf_modules.nf'
 include { ANCORFS_FASTA              } from '../modules/local/ancorf_modules.nf'
@@ -136,38 +136,14 @@ workflow ANCORF {
 	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	*/
 	
-	if (params.mode == "genomes_not_aligned") {
-		ANCESTRAL_ORFS( 
+	if (params.mode == "prank") {
+		ANCESTRAL_ORFS_PRANK( 
 			ALIGNMENT_FASTA.out.fna.flatten(),
 			CHECK_INPUTS.out.tree,
 			focal_CDS_faa
 			)
-        raw_ancorfs_fastas = ANCESTRAL_ORFS.out.raw_ancorfs_fastas.collect()
-        alignment_tsvs     = ANCESTRAL_ORFS.out.ssearch36_tsvs.collect()
-	} else if (params.mode == "genomes_aligned") {
-		ANCESTRAL_ORFS_MACSE( 
-			ALIGNMENT_FASTA.out.fna.flatten(),
-			CHECK_INPUTS.out.tree,
-			focal_CDS_faa
-			)
-        raw_ancorfs_fastas = ANCESTRAL_ORFS_MACSE.out.raw_ancorfs_fastas.collect()
-        alignment_tsvs     = ANCESTRAL_ORFS_MACSE.out.ssearch36_tsvs.collect()
-	} else if (params.mode == "genes_aligned") {
-		ANCESTRAL_ORFS_MACSE_PHYML( 
-			ALIGNMENT_FASTA.out.fna.flatten(),
-			CHECK_INPUTS.out.tree,
-			focal_CDS_faa
-			)
-        raw_ancorfs_fastas = ANCESTRAL_ORFS_MACSE_PHYML.out.raw_ancorfs_fastas.collect()
-        alignment_tsvs     = ANCESTRAL_ORFS_MACSE_PHYML.out.ssearch36_tsvs.collect()
-	} else if (params.mode == "raxml") {
-		ANCESTRAL_ORFS_RAXML( 
-			ALIGNMENT_FASTA.out.fna.flatten(),
-			CHECK_INPUTS.out.tree,
-			focal_CDS_faa
-			)
-        raw_ancorfs_fastas = ANCESTRAL_ORFS_RAXML.out.raw_ancorfs_fastas.collect()
-        alignment_tsvs     = ANCESTRAL_ORFS_RAXML.out.ssearch36_tsvs.collect()
+        raw_ancorfs_fastas = ANCESTRAL_ORFS_PRANK.out.raw_ancorfs_fastas.collect()
+        alignment_tsvs     = ANCESTRAL_ORFS_PRANK.out.ssearch36_tsvs.collect()
 	} else if (params.mode == "prequel") {
 		ANCESTRAL_ORFS_PREQUEL( 
 			ALIGNMENT_FASTA.out.fna.flatten(),
