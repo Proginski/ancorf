@@ -72,7 +72,9 @@ Build FASTA files with the selected ancestral ORFs:
 ## Dependencies
 
 Nextflow >= 23.10.0
-DENSE workflow: https://github.com/i2bc/dense
+DENSE workflow: https://github.com/i2bc/dense >= v1.0.8
+Singularity OR Apptainer OR Docker
+Tested on release v1.0.0
 
 ## Citation
 
