@@ -26,6 +26,8 @@ nextflow run proginski/ancorf -profile <SINGULARITY-APPTAINER-DOCKER> --gendir <
 ```
 nextflow run proginski/ancorf -profile singularity --gendir data/test/genomes/ --focal Scer_NCBI --tree data/test/saccharomyces.nwk --trg_table data/test/TRG_table.tsv --queries data/test/SCER_NCOS_CDS_without_distant_homologs.txt -resume
 ```
+
+
 > [!WARNING] The PRANK algorithm presents an intrinsic variability, which might marginally cause the results to fluctuate.
 
 ## Container Requirements
