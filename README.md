@@ -19,7 +19,12 @@ This NEXTFLOW workflow takes a list of de novo emerged genes in a focal genome, 
 ## Usage
 
 ```
-nextflow run proginski/ancorf -profile <SINGULARITY-APPTAINER-DOCKER> --gendir <DIR_WITH_GFF_AND_FASTA> --focal <FOCAL_GENOME_NAME> --tree <NEWICK_WITH_FOCAL_AND_NEIGHBORS> --TRG_table <TRG_TABLE> --queries <QUERIES> --mode <PRANK-PREQUEL> --outdir <OUTDIR>
+nextflow run proginski/ancorf -profile <SINGULARITY-APPTAINER-DOCKER> --gendir <DIR_WITH_GFF_AND_FASTA> --focal <FOCAL_GENOME_NAME> --tree <NEWICK_WITH_FOCAL_AND_NEIGHBORS> --trg_table <TRG_TABLE> --queries <QUERIES> --mode <PRANK-PREQUEL> --outdir <OUTDIR>
+```
+
+## Test
+```
+nextflow run proginski/ancorf -profile singularity --gendir data/test/genomes/ --focal Scer_NCBI --tree data/test/saccharomyces.nwk --trg_table data/test/TRG_table.tsv --queries data/test/SCER_NCOS_CDS_without_distant_homologs.txt -resume
 ```
 
 ## Container Requirements
@@ -63,6 +68,7 @@ Build FASTA files with the selected ancestral ORFs:
 
 ## Dependencies
 
+Nextflow >= 23.10.0
 DENSE workflow: https://github.com/i2bc/dense
 
 ## Citation
