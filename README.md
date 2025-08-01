@@ -27,6 +27,9 @@ nextflow run proginski/ancorf -profile <SINGULARITY-APPTAINER-DOCKER> --gendir <
 nextflow run proginski/ancorf -profile singularity --gendir data/test/genomes/ --focal Scer_NCBI --tree data/test/saccharomyces.nwk --trg_table data/test/TRG_table.tsv --queries data/test/SCER_NCOS_CDS_without_distant_homologs.txt -resume
 ```
 
+> [!NOTE]
+> The test command including the (first and only one) pull of the Dockerhub image took about 7m on a computer with 10 CPUs and 20Gb of RAM
+
 
 > [!WARNING] The PRANK algorithm presents an intrinsic variability, which might marginally cause the results to fluctuate.
 
